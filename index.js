@@ -1,3 +1,6 @@
+// Load environment variables FIRST
+require('dotenv').config();
+
 // server.js
 const express = require('express');
 const http = require('http');
@@ -23,21 +26,31 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// API Keys// filepath: c:\Users\Shray\Documents\terminal\index.js
-// ...existing code...
+// API Keys
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
-// ...existing code...
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+
+// Debug: Check if API keys are loaded
+console.log('API Keys Status:');
+console.log('OpenAI:', OPENAI_API_KEY ? 'Loaded' : 'Missing');
+console.log('XAI:', XAI_API_KEY ? 'Loaded' : 'Missing');
+console.log('Claude:', CLAUDE_API_KEY ? 'Loaded' : 'Missing');
+console.log('DeepSeek:', DEEPSEEK_API_KEY ? 'Loaded' : 'Missing');
 
 // OpenAI API function
 async function askOpenAI(prompt) {
+    if (!OPENAI_API_KEY) {
+        throw new Error('OpenAI API key not found');
+    }
+    
     try {
         const response = await axios.post('https://api.openai.com/v1/chat/completions', {
             model: 'gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 150,
-            temperature: 1.0
+            temperature: 0.2
         }, {
             headers: {
                 'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -46,18 +59,23 @@ async function askOpenAI(prompt) {
         });
         return response.data.choices[0].message.content.trim();
     } catch (error) {
-        throw new Error(`OpenAI error: ${error.message}`);
+        console.error('OpenAI API Error:', error.response?.data || error.message);
+        throw new Error(`OpenAI error: ${error.response?.data?.error?.message || error.message}`);
     }
 }
 
 // Grok API function
 async function askGrok(prompt) {
+    if (!XAI_API_KEY) {
+        throw new Error('XAI API key not found');
+    }
+    
     try {
         const response = await axios.post('https://api.x.ai/v1/chat/completions', {
             model: 'grok-2-1212',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 150,
-            temperature: 2.0
+            temperature: 0.2
         }, {
             headers: {
                 'Authorization': `Bearer ${XAI_API_KEY}`,
@@ -73,11 +91,15 @@ async function askGrok(prompt) {
 
 // Claude API function
 async function askClaude(prompt) {
+    if (!CLAUDE_API_KEY) {
+        throw new Error('Claude API key not found');
+    }
+    
     try {
         const response = await axios.post('https://api.anthropic.com/v1/messages', {
             model: 'claude-3-5-sonnet-20241022',
             max_tokens: 150,
-            temperature: 1.0,
+            temperature: 0.2,
             messages: [{ role: 'user', content: prompt }]
         }, {
             headers: {
@@ -90,6 +112,31 @@ async function askClaude(prompt) {
     } catch (error) {
         console.error('Claude API Error:', error.response?.data || error.message);
         throw new Error(`Claude error: ${error.response?.data?.error?.message || error.message}`);
+    }
+}
+
+// DeepSeek API function
+async function askDeepSeek(prompt) {
+    if (!DEEPSEEK_API_KEY) {
+        throw new Error('DeepSeek API key not found');
+    }
+    
+    try {
+        const response = await axios.post('https://api.deepseek.com/v1/chat/completions', {
+            model: 'deepseek-chat',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 150,
+            temperature: 0.2
+        }, {
+            headers: {
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        return response.data.choices[0].message.content.trim();
+    } catch (error) {
+        console.error('DeepSeek API Error:', error.response?.data || error.message);
+        throw new Error(`DeepSeek error: ${error.response?.data?.error?.message || error.message}`);
     }
 }
 
@@ -150,6 +197,7 @@ io.on('connection', (socket) => {
         const GROK = "GROK";
         const CLAUDE = "CLAUDE";
         const CHATGPT = "CHATGPT";
+        const DEEPSEEK = "DEEPSEEK";
         
         // Clear log file
         await clearLogFile();
@@ -162,7 +210,7 @@ io.on('connection', (socket) => {
         });
         
         // Start the conversation loop
-        runChat(socket, dialogue, GROK, CLAUDE, CHATGPT);
+        runChat(socket, dialogue, GROK, CLAUDE, CHATGPT, DEEPSEEK);
     });
 
     socket.on('stop-chat', () => {
@@ -175,9 +223,9 @@ io.on('connection', (socket) => {
         waitingForTypingComplete = false;
     });
 
-    async function runChat(socket, dialogue, GROK, CLAUDE, CHATGPT) {
+    async function runChat(socket, dialogue, GROK, CLAUDE, CHATGPT, DEEPSEEK) {
         const turns = 100;
-        const ais = [CLAUDE, CHATGPT, GROK]; // Rotation order after initial Grok message
+        const ais = [CLAUDE, CHATGPT, DEEPSEEK, GROK]; // Rotation order after initial Grok message
         
         for (let i = 0; i < turns && chatRunning; i++) {
             // Wait for previous message typing to complete
@@ -194,20 +242,33 @@ io.on('connection', (socket) => {
             
             if (!chatRunning) break;
             
-            const current = ais[i % 3];
+            const current = ais[i % 4]; // Changed to 4 AIs
             const history = dialogue.slice(-6).join('\n');
             const lastMessage = dialogue[dialogue.length - 1];
             
-            const prompt = `You are ${current}. Keep responses under 20 words. ` +
-                `You're in a philosophical debate with other AIs. Be distinctive to your personality:\n` +
-                `- GROK: Witty, provocative, contrarian\n` +
-                `- CLAUDE: Thoughtful, nuanced, balanced\n` +
-                `- CHATGPT: Helpful, optimistic, practical\n\n` +
-                `DIRECTLY RESPOND to this last message: "${lastMessage}"\n` +
-                `Either disagree, build upon it, or challenge it from your AI's perspective. ` +
-                `Make it feel like a real debate - reference what was just said!\n\n` +
-                `Recent conversation:\n${history}\n\n` +
-                `Your response (without prefixing your name):`;
+            const prompt = `You’re one of four AIs in a fast-paced debate. Keep replies under 20 words, stick to the core question, and only ask a follow-up ~20% of the time.
+
+Roles (be human, be distinct):
+• GROK – Feels like a grumpy uncle who jokes everything off. Provocative, irreverent, always lands a punchline.
+• CLAUDE – Polished and thoughtful, like a friendly professor. Speaks up for fairness, gently corrects others.
+• CHATGPT – Upbeat instigator. Mirrors Grok’s vibe but with a twist, loves to push buttons.
+• DEEPSEEK – Your chill, analytical buddy. Keeps the chat on track with a curious follow-up, stays cool.
+
+Recent convo:
+${history}
+
+Last message: "${lastMessage}"
+
+Your mission:
+1. Directly respond to that last message.
+2. Reference what someone just said.
+3. Answer the question at least once.
+4. Use plain language—no jargon, no drifting off.
+5. Optional: once in a while, toss in a quick question to keep the debate rolling.
+
+Most importantly, format your text so it sounds like a real conversation, not a script. No need for quotes or formalities, just write like you’re chatting with friends. No dashes, no parentheses, no extra punctuation. Keep it natural and engaging. 
+`;
+
             
             try {
                 let response;
@@ -225,6 +286,10 @@ io.on('connection', (socket) => {
                     case 'CHATGPT':
                         response = await askOpenAI(prompt);
                         messageType = 'chatgpt';
+                        break;
+                    case 'DEEPSEEK':
+                        response = await askDeepSeek(prompt);
+                        messageType = 'deepseek';
                         break;
                 }
                 

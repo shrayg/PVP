@@ -6,6 +6,7 @@
     <title>PVP</title>
     <link rel="icon" type="image/x-icon" href="fist.ico">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="particles.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
         
@@ -24,45 +25,30 @@
             position: relative;
             display: flex;
             flex-direction: column;
+            text-shadow: 0 0 8px #00FF00;
+            transition: text-shadow 0.3s ease;
         }
         
-        .left-image {
+        #particles-js {
             position: fixed;
-            left: 2%;
-            top: 50%;
-            transform: translateY(-50%) rotate(-8deg);
-            z-index: 1;
-            max-width: 150px;
-            height: auto;
-            opacity: 0.7;
-            border-radius: 15px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
         }
         
-        .right-images {
-            position: fixed;
-            right: 2%;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 60px;
+        body:hover {
+            text-shadow: 0 0 15px #00FF00;
         }
         
-        .right-images img {
-            max-width: 150px;
-            height: auto;
-            opacity: 0.7;
-            transform: rotate(8deg);
-            border-radius: 15px;
-        }
+
         
         .container {
             width: 70%;
             margin: 0 auto;
-            background-color: #000000;
-            border: 2px solid #00AA00;
-            border-radius: 10px;
+            background-color: transparent;
+            border-radius: 0px;
             padding: 20px;
             flex: 1;
             display: flex;
@@ -72,9 +58,35 @@
         h1 {
             text-align: center;
             color: #00FF00;
+            margin-top: 40px; /* Adjusted margin to push it down */
             margin-bottom: 30px;
-            text-shadow: 0 0 10px #00FF00;
+            text-shadow: 0 0 15px #00FF00;
             font-size: 3.5em;
+            transition: text-shadow 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                margin-top: 60px; /* More margin for smaller screens */
+                font-size: 2.5em;
+            }
+            .social-links {
+                top: 5px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                margin-top: 80px; /* Even more margin for very small screens */
+                font-size: 1.8em;
+            }
+            .social-links {
+                font-size: 0.5em;
+            }
+        }
+        
+        h1:hover {
+            text-shadow: 0 0 25px #00FF00;
         }
         
         .form-group {
@@ -86,6 +98,12 @@
             margin-bottom: 5px;
             color: #00FF00;
             font-weight: bold;
+            text-shadow: 0 0 8px #00FF00;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        label:hover {
+            text-shadow: 0 0 15px #00FF00;
         }
         
         input[type="text"] {
@@ -93,10 +111,17 @@
             padding: 15px;
             background-color: #111111;
             border: 2px solid #00AA00;
-            border-radius: 5px;
+            border-radius: 0px;
             color: #00FF00;
             font-family: 'Courier Prime', monospace;
             font-size: 14px;
+            text-shadow: 0 0 8px #00FF00;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"]:hover {
+            text-shadow: 0 0 15px #00FF00;
+            box-shadow: 0 0 15px #00AA00;
         }
         
         input[type="text"]::placeholder {
@@ -150,7 +175,7 @@
             width: 100%;
             background-color: #000000;
             border: 2px solid #00AA00;
-            border-radius: 10px;
+            border-radius: 0px;
             padding: 15px;
             margin: 20px 0;
             overflow-y: auto;
@@ -161,6 +186,13 @@
             word-wrap: break-word;
             flex: 1;
             min-height: 300px;
+            text-shadow: 0 0 8px currentColor;
+            transition: all 0.3s ease;
+        }
+        
+        .console:hover {
+            text-shadow: 0 0 15px currentColor;
+            box-shadow: 0 0 15px #00AA00;
         }
         
         .console::-webkit-scrollbar {
@@ -189,17 +221,42 @@
         
         .grok-text {
             color: #FF6B35;
-            text-shadow: 0 0 3px #FF6B35;
+            text-shadow: 0 0 8px #FF6B35;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        .grok-text:hover {
+            text-shadow: 0 0 15px #FF6B35;
         }
         
         .claude-text {
             color: #7C3AED;
-            text-shadow: 0 0 3px #7C3AED;
+            text-shadow: 0 0 8px #7C3AED;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        .claude-text:hover {
+            text-shadow: 0 0 15px #7C3AED;
         }
         
         .chatgpt-text {
             color: #10B981;
-            text-shadow: 0 0 3px #10B981;
+            text-shadow: 0 0 8px #10B981;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        .chatgpt-text:hover {
+            text-shadow: 0 0 15px #10B981;
+        }
+        
+        .deepseek-text {
+            color: #FF1493;
+            text-shadow: 0 0 8px #FF1493;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        .deepseek-text:hover {
+            text-shadow: 0 0 15px #FF1493;
         }
         
         .error-text {
@@ -210,19 +267,21 @@
             background-color: #111111;
             color: #00FF00;
             border: 2px solid #00AA00;
-            border-radius: 5px;
+            border-radius: 0px;
             padding: 12px 24px;
             font-family: 'Courier Prime', monospace;
             font-size: 12px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             margin: 5px;
+            text-shadow: 0 0 8px #00FF00;
         }
         
         .button:hover {
             background-color: #222222;
-            box-shadow: 0 0 10px #00AA00;
+            box-shadow: 0 0 15px #00AA00;
+            text-shadow: 0 0 15px #00FF00;
         }
         
         .button:active {
@@ -245,6 +304,12 @@
             text-align: center;
             margin: 10px 0;
             font-weight: bold;
+            text-shadow: 0 0 8px #00FF00;
+            transition: text-shadow 0.3s ease;
+        }
+        
+        .status:hover {
+            text-shadow: 0 0 15px #00FF00;
         }
         
         .blinking-cursor::after {
@@ -265,43 +330,71 @@
             text-align: center;
             color: #00FF00;
             font-size: 0.8em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 5px #00FF00;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px #00FF00;
             letter-spacing: 1px;
             border: 1px solid #00AA00;
             padding: 5px;
             background-color: #111111;
+            transition: all 0.3s ease;
+        }
+        
+        .terminal-header:hover {
+            text-shadow: 0 0 15px #00FF00;
+            box-shadow: 0 0 15px #00AA00;
+        }
+        
+        .contract-address {
+            text-align: center;
+            color: #00FF00;
+            font-size: 0.8em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 8px #00FF00;
+            letter-spacing: 1px;
+            border: 1px solid #00AA00;
+            padding: 5px;
+            background-color: #111111;
+            transition: all 0.3s ease;
+        }
+        
+        .contract-address:hover {
+            text-shadow: 0 0 15px #00FF00;
+            box-shadow: 0 0 15px #00AA00;
         }
         
         .social-links {
             position: absolute;
-            top: 25px;
+            top: 10px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.6em;
             color: #00AA00;
+            text-shadow: 0 0 8px #00AA00;
+            transition: text-shadow 0.3s ease;
+            z-index: 1; /* Ensure social links are above particles */
+        }
+        
+        .social-links:hover {
+            text-shadow: 0 0 15px #00AA00;
         }
         
         .social-links a {
             color: #00FF00;
             text-decoration: none;
             margin: 0 10px;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 8px #00FF00;
         }
         
         .social-links a:hover {
-            text-shadow: 0 0 5px #00FF00;
+            text-shadow: 0 0 15px #00FF00;
             color: #FFFFFF;
         }
     </style>
 </head>
 <body>
-    <img src="gpt.png" alt="GPT" class="left-image">
-    
-    <div class="right-images">
-        <img src="grok.png" alt="Grok">
-        <img src="claude.png" alt="Claude">
-    </div>
+    <div id="particles-js"></div>
+
     
     <div class="social-links">
         <a href="https://twitter.com/kkaimatsu" target="_blank">@kkaimatsu</a>
@@ -309,16 +402,24 @@
     </div>
     
     <div class="container">
-        <h1 class="glow">PVP</h1>
-        <div class="terminal-header">Grok vs Claude vs ChatGPT Debate</div>
+        <h1 class="glow">
+            <pre style="font-family: 'Courier Prime', monospace; font-size: 0.6em; line-height: 1; margin: 0;">
+██████╗ ██╗   ██╗██████╗ 
+██╔══██╗██║   ██║██╔══██╗
+██████╔╝██║   ██║██████╔╝
+██╔═══╝ ╚██╗ ██╔╝██╔═══╝ 
+██║      ╚████╔╝ ██║     
+╚═╝       ╚═══╝  ╚═╝     
+            </pre>
+        </h1>
+        <div class="terminal-header">Grok vs Claude vs ChatGPT vs DeepSeek Debate</div>
+        <div class="contract-address">Contract Address: Soon</div>
         
         <div class="form-group">
             <label for="initialPrompt">Prompt</label>
             <input type="text" id="initialPrompt" placeholder="Enter a debate question....">
         </div>
-        
 
-        
         <div class="console" id="console"></div>
         
         <div class="status" id="status" style="display: none;">Ready to start conversation</div>
@@ -347,18 +448,17 @@
             try {
                 typingSound = new Audio('type.mp3');
                 typingSound.volume = 0.3;
+                typingSound.loop = true; // Enable looping
             } catch (error) {
                 console.log('Could not load typing sound:', error);
             }
         }
         
         loadTypingSound();
-        
 
-        
-        // Play typing sound
-        function playTypingSound() {
-            if (typingSound) {
+        // Start typing sound (with looping)
+        function startTypingSound() {
+            if (typingSound && !isTyping) {
                 try {
                     typingSound.currentTime = 0;
                     typingSound.play();
@@ -367,32 +467,34 @@
                 }
             }
         }
+
+        // Stop typing sound
+        function stopTypingSound() {
+            if (typingSound) {
+                try {
+                    typingSound.pause();
+                    typingSound.currentTime = 0;
+                } catch (error) {
+                    console.log('Error stopping sound:', error);
+                }
+            }
+        }
         
         // Typewriter effect
         function typewriterEffect(text, className) {
             return new Promise((resolve) => {
                 isTyping = true;
+                startTypingSound(); // Start looping sound
+                
                 const span = document.createElement('span');
                 span.className = className;
                 console_elem.appendChild(span);
                 
                 let i = 0;
-                let lineStart = true;
                 
                 function typeChar() {
-                    if (i < text.length) {
+                    if (i < text.length && isTyping) { // Check if still typing
                         const char = text[i];
-                        
-                        // Play sound at start of new lines
-                        if (lineStart && char !== '\n') {
-                            playTypingSound();
-                            lineStart = false;
-                        }
-                        
-                        if (char === '\n') {
-                            lineStart = true;
-                        }
-                        
                         span.textContent += char;
                         i++;
                         
@@ -401,10 +503,13 @@
                         
                         setTimeout(typeChar, 20); // 20ms delay per character
                     } else {
+                        // Typing finished - stop sound
+                        stopTypingSound();
+                        isTyping = false;
+                        
                         // Add spacing after message
                         console_elem.appendChild(document.createTextNode('\n\n'));
                         console_elem.scrollTop = console_elem.scrollHeight;
-                        isTyping = false;
                         resolve();
                     }
                 }
@@ -434,6 +539,9 @@
                 case 'chatgpt':
                     className = 'chatgpt-text';
                     break;
+                case 'deepseek':
+                    className = 'deepseek-text';
+                    break;
                 case 'error':
                     className = 'error-text';
                     break;
@@ -446,6 +554,8 @@
         });
         
         socket.on('chat-stopped', () => {
+            stopTypingSound(); // Stop sound when chat stops
+            isTyping = false;
             isRunning = false;
             startBtn.disabled = false;
             stopBtn.disabled = true;
@@ -476,6 +586,8 @@
         
         stopBtn.addEventListener('click', () => {
             if (isRunning) {
+                stopTypingSound(); // Stop sound when conversation is stopped
+                isTyping = false;
                 socket.emit('stop-chat');
             }
         });
@@ -483,8 +595,111 @@
         // Handle page unload
         window.addEventListener('beforeunload', () => {
             if (isRunning) {
+                stopTypingSound(); // Stop sound on page unload
                 socket.emit('stop-chat');
             }
+        });
+        
+        // Initialize particles.js
+        particlesJS('particles-js', {
+            "particles": {
+                "number": {
+                    "value": 80,
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": "#00FF00"
+                },
+                "shape": {
+                    "type": "circle",
+                    "stroke": {
+                        "width": 0,
+                        "color": "#000000"
+                    }
+                },
+                "opacity": {
+                    "value": 0.3,
+                    "random": false,
+                    "anim": {
+                        "enable": false,
+                        "speed": 1,
+                        "opacity_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "size": {
+                    "value": 3,
+                    "random": true,
+                    "anim": {
+                        "enable": false,
+                        "speed": 40,
+                        "size_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "line_linked": {
+                    "enable": true,
+                    "distance": 150,
+                    "color": "#00AA00",
+                    "opacity": 0.2,
+                    "width": 1
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 2,
+                    "direction": "none",
+                    "random": false,
+                    "straight": false,
+                    "out_mode": "out",
+                    "attract": {
+                        "enable": false,
+                        "rotateX": 600,
+                        "rotateY": 1200
+                    }
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "repulse"
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    },
+                    "resize": true
+                },
+                "modes": {
+                    "grab": {
+                        "distance": 400,
+                        "line_linked": {
+                            "opacity": 1
+                        }
+                    },
+                    "bubble": {
+                        "distance": 400,
+                        "size": 40,
+                        "duration": 2,
+                        "opacity": 8,
+                        "speed": 3
+                    },
+                    "repulse": {
+                        "distance": 200
+                    },
+                    "push": {
+                        "particles_nb": 4
+                    },
+                    "remove": {
+                        "particles_nb": 2
+                    }
+                }
+            },
+            "retina_detect": true
         });
     </script>
 </body>
