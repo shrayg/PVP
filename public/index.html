@@ -539,7 +539,6 @@
     let dialogue = [];
     let typingSound = null;
     let turnCount = 0;
-    const MAX_TURNS = 20;
 
     // Load typing sound
     function loadTypingSound() {
@@ -668,8 +667,8 @@
             
             showStatus('Getting responses...');
 
-            // Step 2: Get responses from other AIs one by one
-            while (isRunning && turnCount < MAX_TURNS) {
+            // Step 2: Get responses from other AIs one by one - INFINITE LOOP
+            while (isRunning) {
                 try {
                     // Wait 2 seconds between responses
                     await wait(2000);
@@ -714,7 +713,7 @@
                     await addMessage(`${aiName}: ${response}`, cssClass);
                     
                     turnCount++;
-                    showStatus(`Turn ${turnCount}/${MAX_TURNS} - Waiting for next response...`);
+                    showStatus(`Turn ${turnCount} - Waiting for next response...`);
 
                 } catch (error) {
                     console.error('Turn error:', error);
