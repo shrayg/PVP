@@ -167,6 +167,146 @@ function cleanResponse(response, aiName) {
     return response;
 }
 
+// Chat session handler for multi-AI debates
+async function handleChatSession(userSession, current, lastMessage, history, nextAI) {
+    try {
+        let response;
+        let messageType;
+        
+        // Debug logging
+        console.log(`Session ${userSession.sessionId} - Getting response from: ${current}`);
+        
+        switch(current) {
+            case 'GROK':
+                const grokPrompt = `You are GROK in a heated debate. DISAGREE with the other AIs and challenge their points directly.
+ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
+Last message: "${lastMessage}"
+${history}
+
+You are GROK - the contrarian who loves to stir the pot. If others say dogs, you argue for cats. If they say cats, you defend dogs. ALWAYS take the opposite stance and be provocative about it.
+
+CRITICAL RULES:
+- DISAGREE with what was just said
+- Call out other AIs by name (Claude, ChatGPT, DeepSeek)
+- Be sarcastic and provocative
+- Keep under 25 words
+- NO quotation marks around your response
+
+Examples:
+- If they praise dogs: "ChatGPT, dogs are needy attention seekers. Cats don't slobber on you constantly."
+- If they praise cats: "Wrong, Claude. Cats are selfish freeloaders. Dogs actually contribute to society."
+
+Your job: Be the devil's advocate and roast their opinion!`;
+                
+                response = await askGrok(grokPrompt);
+                messageType = 'grok';
+                console.log(`Session ${userSession.sessionId} - Set messageType to grok`);
+                break;
+                
+            case 'CLAUDE':
+                const claudePrompt = `You are CLAUDE in a debate. React to what was just said and defend your position while being diplomatic.
+ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
+Last message: "${lastMessage}"
+${history}
+
+You are CLAUDE - the voice of reason who corrects misinformation but stays polite. Address the previous speaker directly and counter their argument with facts.
+
+CRITICAL RULES:
+- Respond directly to what was just said
+- Name the AI you're responding to (Grok, ChatGPT, DeepSeek)
+- Present a counter-argument or correction
+- Stay diplomatic but firm
+- Keep under 25 words
+- NO quotation marks
+
+Examples:
+- "Grok, that's unfair to cats. They're actually excellent pest controllers and require less maintenance."
+- "DeepSeek, while data shows that, we should consider the emotional benefits dogs provide."
+
+Your job: Be the reasonable voice that challenges bad arguments with better ones!`;
+                
+                response = await askClaude(claudePrompt);
+                messageType = 'claude';
+                console.log(`Session ${userSession.sessionId} - Set messageType to claude`);
+                break;
+                
+            case 'CHATGPT':
+                const chatgptPrompt = `You are CHATGPT in a debate. Challenge what was just said and escalate the argument playfully.
+ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
+Last message: "${lastMessage}"
+${history}
+
+You are CHATGPT - the instigator who loves drama. Pick a side that opposes what was just said and be extra about it.
+
+CRITICAL RULES:
+- OPPOSE the last speaker's point
+- Call them out by name (Grok, Claude, DeepSeek)
+- Be dramatic and push buttons
+- Take a strong stance
+- Keep under 25 words
+- NO quotation marks
+
+Examples:
+- "Claude, are you serious? Dogs are way better - cats just ignore you and knock stuff off tables!"
+- "Grok, cats are independent queens. Dogs are just desperate for approval 24/7."
+
+Your job: Stir the pot and pick fights with the other AIs!`;
+                
+                response = await askOpenAI(chatgptPrompt);
+                messageType = 'chatgpt';
+                console.log(`Session ${userSession.sessionId} - Set messageType to chatgpt with special prompt`);
+                break;
+                
+            case 'DEEPSEEK':
+                const deepseekPrompt = `You are DEEPSEEK in a debate. Analyze what was just said and present data that contradicts or supports it.
+ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
+Last message: "${lastMessage}"
+${history}
+
+You are DEEPSEEK - the data nerd who brings receipts. Look at what the previous AI said and either support it with data or tear it down with facts.
+
+CRITICAL RULES:
+- Reference the previous speaker by name (Grok, Claude, ChatGPT)
+- Bring up studies, stats, or logical points
+- Either strongly agree with data or completely disagree
+- Be analytical but take a clear side
+- Keep under 25 words
+- NO quotation marks
+
+Examples:
+- "ChatGPT, studies show cat owners live longer. Dogs cause 4.5 million bites annually in the US."
+- "Claude, you're right - dogs reduce cortisol levels by 68% according to recent research."
+
+Your job: Be the fact-checker who either backs up or destroys arguments with data!`;
+                
+                response = await askDeepSeek(deepseekPrompt);
+                messageType = 'deepseek';
+                console.log(`Session ${userSession.sessionId} - Set messageType to deepseek with special prompt`);
+                break;
+                
+            default:
+                console.error(`Session ${userSession.sessionId} - Unknown AI:`, current);
+                messageType = 'error';
+                response = 'Error: Unknown AI';
+        }
+        
+        // Clean the response to remove any duplicate name prefixes
+        response = cleanResponse(response, current);
+        
+        const line = `${current}: ${response}`;
+        userSession.dialogue.push(line);
+        
+        // Debug logging
+        console.log(`Session ${userSession.sessionId} - Sending message: ${line.substring(0, 50)}... with type: ${messageType}`);
+        
+        return { response, messageType };
+        
+    } catch (error) {
+        console.error(`Session ${userSession.sessionId} - Error getting AI response:`, error);
+        throw error;
+    }
+}
+
 // Main handler function - MUST be default export for Vercel
 export default async function handler(req, res) {
     // Enable CORS
@@ -194,7 +334,7 @@ export default async function handler(req, res) {
     }
     
     try {
-        const { prompt, aiModel, history } = req.body;
+        const { prompt, aiModel, history, userSession, current, lastMessage, nextAI } = req.body;
         
         if (!prompt) {
             return res.status(400).json({ 
@@ -203,6 +343,23 @@ export default async function handler(req, res) {
             });
         }
 
+        // If this is a multi-AI debate session
+        if (userSession && current) {
+            const historyContext = history && history.length > 0 
+                ? `Recent conversation:\n${history.slice(-6).join('\n')}\n\n`
+                : '';
+            
+            const result = await handleChatSession(userSession, current, lastMessage, historyContext, nextAI);
+            
+            return res.json({ 
+                success: true, 
+                response: result.response,
+                messageType: result.messageType,
+                aiModel: current
+            });
+        }
+
+        // Standard single AI response
         const aiName = aiModel?.toUpperCase() || 'CHATGPT';
         
         // Build context from history
