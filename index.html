@@ -59,12 +59,13 @@
             text-align: center;
             color: #00FF00;
             margin-top: 20px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
             text-shadow: 0 0 3px #00FF00;
             font-size: 2.2em;
             animation: glow-pulse 1s ease-in-out infinite alternate;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
         
         @keyframes glow-pulse {
@@ -402,26 +403,20 @@
     <div class="container">
         <h1 class="glow">
             <div class="wave-overlay"></div>
-            <pre style="font-family: 'Courier Prime', monospace; font-size: 0.2em; line-height: 1; margin: 0;">
- ██████████            █████                █████                               
-░░███░░░░███          ░░███                ░░███                                
-░███   ░░███  ██████  ░███████   ██████   ███████    ██████                    
-░███    ░███ ███░░███ ░███░░███ ░░░░░███ ░░░███░    ███░░███                   
-░███    ░███░███████  ░███ ░███  ███████   ░███    ░███████                    
-░███    ███ ░███░░░   ░███ ░███ ███░░███   ░███ ███░███░░░                     
-██████████  ░░██████  ████████ ░░████████  ░░█████ ░░██████                    
-░░░░░░░░░░    ░░░░░░  ░░░░░░░░   ░░░░░░░░    ░░░░░   ░░░░░░                     
-                                                                                
-                                                                                
-                                                                                
- ███████████                                     ███                       ████ 
-░█░░░███░░░█                                    ░░░                       ░░███ 
-░░███  ░   ██████  ████████  █████████████   ████  ████████    ██████   ░███ 
-░███     ███░░███░░███░░███░░███░░███░░███ ░░███ ░░███░░███  ░░░░░███  ░███ 
- ░███    ░███████  ░███ ░░░  ░███ ░███ ░███  ░███  ░███ ░███   ███████  ░███ 
-░███    ░███░░░   ░███      ░███ ░███ ░███  ░███  ░███ ░███  ███░░███  ░███ 
- █████   ░░██████  █████     █████░███ █████ █████ ████ █████░░████████ █████
-   ░░░░░     ░░░░░░  ░░░░░     ░░░░░ ░░░ ░░░░░ ░░░░░ ░░░░ ░░░░░  ░░░░░░░░ ░░░░░ 
+            <pre style="font-family: 'Courier Prime', monospace; font-size: 0.25em; line-height: 1.2; margin: 0; white-space: pre;">
+██████╗ ███████╗██████╗  █████╗ ████████╗███████╗    
+██╔══██╗██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██╔════╝    
+██║  ██║█████╗  ██████╔╝███████║   ██║   █████╗      
+██║  ██║██╔══╝  ██╔══██╗██╔══██║   ██║   ██╔══╝      
+██████╔╝███████╗██████╔╝██║  ██║   ██║   ███████╗    
+╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝    
+                                                      
+████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗     
+╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║     
+   ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║     
+   ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║     
+   ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗
+   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
             </pre>
         </h1>
         <div class="terminal-header">Grok vs Claude vs ChatGPT vs DeepSeek Debate</div>
@@ -527,9 +522,10 @@
     const status = document.getElementById('status');
 
     let isRunning = false;
-    let currentTimeout = null;
+    let currentSessionId = null;
     let dialogue = [];
     let typingSound = null;
+    let turnCount = 0;
 
     // Load typing sound
     function loadTypingSound() {
@@ -546,40 +542,43 @@
 
     // Add message to console with typewriter effect
     function addMessage(text, className) {
-        const span = document.createElement('span');
-        span.className = className;
-        console_elem.appendChild(span);
+        return new Promise((resolve) => {
+            const span = document.createElement('span');
+            span.className = className;
+            console_elem.appendChild(span);
 
-        let i = 0;
+            let i = 0;
 
-        // Start looping typing sound
-        if (typingSound) {
-            try {
-                typingSound.currentTime = 0;
-                typingSound.play().catch(() => {});
-            } catch (e) {
-                console.warn('Typing sound play error:', e);
-            }
-        }
-
-        function typeChar() {
-            if (i < text.length) {
-                span.textContent += text[i];
-                i++;
-                setTimeout(typeChar, 20);
-            } else {
-                // Stop sound when done
-                if (typingSound) {
-                    typingSound.pause();
+            // Start looping typing sound
+            if (typingSound) {
+                try {
                     typingSound.currentTime = 0;
+                    typingSound.play().catch(() => {});
+                } catch (e) {
+                    console.warn('Typing sound play error:', e);
                 }
-
-                span.textContent += '\n\n';
-                console_elem.scrollTop = console_elem.scrollHeight;
             }
-        }
 
-        typeChar();
+            function typeChar() {
+                if (i < text.length && isRunning) {
+                    span.textContent += text[i];
+                    i++;
+                    setTimeout(typeChar, 20);
+                } else {
+                    // Stop sound when done
+                    if (typingSound) {
+                        typingSound.pause();
+                        typingSound.currentTime = 0;
+                    }
+
+                    span.textContent += '\n\n';
+                    console_elem.scrollTop = console_elem.scrollHeight;
+                    resolve();
+                }
+            }
+
+            typeChar();
+        });
     }
 
     // Show status
@@ -588,8 +587,8 @@
         status.style.display = 'block';
     }
 
-    // Get AI response - Updated to work with new server API
-    async function getAIResponse(aiModel, prompt, history) {
+    // Get AI response
+    async function getAIResponse(prompt, sessionId, isNewSession = false, conversationHistory = []) {
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -598,8 +597,9 @@
                 },
                 body: JSON.stringify({
                     prompt,
-                    aiModel,
-                    history
+                    sessionId,
+                    isNewSession,
+                    conversationHistory
                 })
             });
 
@@ -615,9 +615,14 @@
         }
     }
 
-    // Run conversation
+    // Wait with promise
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Run conversation - FIXED VERSION
     async function runConversation() {
-        const initialPrompt = document.getElementById('initialPrompt').value;
+        const initialPrompt = document.getElementById('initialPrompt').value.trim();
         if (!initialPrompt) {
             alert('Please enter a prompt');
             return;
@@ -628,43 +633,87 @@
         stopBtn.disabled = false;
         dialogue = [];
         console_elem.innerHTML = '';
+        turnCount = 0;
+        currentSessionId = null;
 
-        // Add initial prompt
-        const initialMessage = `GROK: ${initialPrompt}`;
-        dialogue.push(initialMessage);
-        addMessage(initialMessage, 'grok-text');
+        showStatus('Starting conversation...');
 
-        showStatus('Conversation running...');
-
-        const ais = ['CLAUDE', 'CHATGPT', 'DEEPSEEK', 'GROK'];
-        const turns = 20;
-
-        for (let i = 0; i < turns && isRunning; i++) {
-            const currentAI = ais[i % 4];
-
-            try {
-                showStatus(`Waiting for ${currentAI}...`);
-
-                // Wait 3 seconds between responses
-                await new Promise(resolve => {
-                    currentTimeout = setTimeout(resolve, 3000);
-                });
-
-                if (!isRunning) break;
-
-                const result = await getAIResponse(currentAI, initialPrompt, dialogue);
-
-                if (result.success) {
-                    const message = `${currentAI}: ${result.response}`;
-                    dialogue.push(message);
-                    addMessage(message, `${currentAI.toLowerCase()}-text`);
-                } else {
-                    addMessage(`${currentAI}: ERROR - ${result.error}`, 'error-text');
-                }
-
-            } catch (error) {
-                addMessage(`${currentAI}: FAILED - ${error.message}`, 'error-text');
+        try {
+            // Step 1: Start new session with Grok's initial message
+            const initResult = await getAIResponse(initialPrompt, null, true);
+            
+            if (!initResult.success) {
+                throw new Error(initResult.error);
             }
+
+            currentSessionId = initResult.sessionId;
+            dialogue = initResult.dialogue || [`GROK: ${initialPrompt}`];
+            
+            // Display Grok's initial message
+            await addMessage(`GROK: ${initialPrompt}`, 'grok-text');
+            
+            showStatus('Getting responses...');
+
+            // Step 2: Get responses from other AIs one by one - INFINITE LOOP
+            while (isRunning) {
+                try {
+                    // Wait 2 seconds between responses
+                    await wait(2000);
+                    
+                    if (!isRunning) break;
+
+                    const result = await getAIResponse(initialPrompt, currentSessionId, false, dialogue);
+                    
+                    if (!result.success) {
+                        console.error('API Error:', result.error);
+                        await addMessage(`ERROR: ${result.error}`, 'error-text');
+                        continue;
+                    }
+
+                    // Update our local dialogue
+                    dialogue = result.dialogue;
+                    
+                    // Get the AI name and response
+                    const aiName = result.aiModel;
+                    const response = result.response;
+                    
+                    // Determine the correct CSS class
+                    let cssClass;
+                    switch (aiName) {
+                        case 'GROK':
+                            cssClass = 'grok-text';
+                            break;
+                        case 'CLAUDE':
+                            cssClass = 'claude-text';
+                            break;
+                        case 'CHATGPT':
+                            cssClass = 'chatgpt-text';
+                            break;
+                        case 'DEEPSEEK':
+                            cssClass = 'deepseek-text';
+                            break;
+                        default:
+                            cssClass = 'user2-text';
+                    }
+
+                    // Display the response
+                    await addMessage(`${aiName}: ${response}`, cssClass);
+                    
+                    turnCount++;
+                    showStatus(`Turn ${turnCount} - Waiting for next response...`);
+
+                } catch (error) {
+                    console.error('Turn error:', error);
+                    await addMessage(`ERROR: ${error.message}`, 'error-text');
+                    
+                    // Wait a bit before trying again
+                    await wait(1000);
+                }
+            }
+
+        } catch (error) {
+            console.error('Conversation error:', error);
+            await addMessage(`SYSTEM ERROR: ${error.message}`, 'error-text');
         }
 
         stopConversation();
@@ -676,23 +725,25 @@
         startBtn.disabled = false;
         stopBtn.disabled = true;
 
-        if (currentTimeout) {
-            clearTimeout(currentTimeout);
-            currentTimeout = null;
-        }
-
         // Stop sound just in case
         if (typingSound) {
             typingSound.pause();
             typingSound.currentTime = 0;
         }
 
-        showStatus('Conversation stopped');
+        showStatus(`Conversation ended (${turnCount} turns completed)`);
     }
 
     // Event listeners
     startBtn.addEventListener('click', runConversation);
     stopBtn.addEventListener('click', stopConversation);
+
+    // Allow Enter key to start conversation
+    document.getElementById('initialPrompt').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !startBtn.disabled) {
+            runConversation();
+        }
+    });
 </script>
 
 </body>
