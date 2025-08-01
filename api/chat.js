@@ -270,7 +270,7 @@ ${history}
 
 The last message was: "${lastMessage}"
 
-Do not roleplay the other people in the conversation. Just reply with your bit.
+Do not roleplay the other people in the conversation. Just reply with your bit. Remember, you are ${currentAI}.  This is just a master prompt for all 4 AIs just respond with your bit.
 
 As ${currentAI}, respond directly to that last message. Reference what someone else just said, and stay true to your personality. Write naturally like you're chatting with friends - no quotes, dashes, or formal punctuation.`;
 
