@@ -59,12 +59,13 @@
             text-align: center;
             color: #00FF00;
             margin-top: 20px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
             text-shadow: 0 0 3px #00FF00;
             font-size: 2.2em;
             animation: glow-pulse 1s ease-in-out infinite alternate;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
         
         @keyframes glow-pulse {
@@ -207,42 +208,34 @@
         
         .grok-text {
             color: #FF6B35 !important;
-            text-shadow: 0 0 8px #FF6B35 !important;
             transition: text-shadow 0.3s ease;
         }
         
         .grok-text:hover {
-            text-shadow: 0 0 15px #FF6B35 !important;
         }
         
         .claude-text {
             color: #7C3AED !important;
-            text-shadow: 0 0 8px #7C3AED !important;
             transition: text-shadow 0.3s ease;
         }
         
         .claude-text:hover {
-            text-shadow: 0 0 15px #7C3AED !important;
         }
         
         .chatgpt-text {
             color: #10B981 !important;
-            text-shadow: 0 0 8px #10B981 !important;
             transition: text-shadow 0.3s ease;
         }
         
         .chatgpt-text:hover {
-            text-shadow: 0 0 15px #10B981 !important;
         }
         
         .deepseek-text {
             color: #FF1493 !important;
-            text-shadow: 0 0 8px #FF1493 !important;
             transition: text-shadow 0.3s ease;
         }
         
         .deepseek-text:hover {
-            text-shadow: 0 0 15px #FF1493 !important;
         }
         
         .error-text {
@@ -410,26 +403,20 @@
     <div class="container">
         <h1 class="glow">
             <div class="wave-overlay"></div>
-            <pre style="font-family: 'Courier Prime', monospace; font-size: 0.2em; line-height: 1; margin: 0;">
- ██████████            █████                █████                               
-░░███░░░░███          ░░███                ░░███                                
-░███   ░░███  ██████  ░███████   ██████   ███████    ██████                    
-░███    ░███ ███░░███ ░███░░███ ░░░░░███ ░░░███░    ███░░███                   
-░███    ░███░███████  ░███ ░███  ███████   ░███    ░███████                    
-░███    ███ ░███░░░   ░███ ░███ ███░░███   ░███ ███░███░░░                     
-██████████  ░░██████  ████████ ░░████████  ░░█████ ░░██████                    
-░░░░░░░░░░    ░░░░░░  ░░░░░░░░   ░░░░░░░░    ░░░░░   ░░░░░░                     
-                                                                                
-                                                                                
-                                                                                
- ███████████                                     ███                       ████ 
-░█░░░███░░░█                                    ░░░                       ░░███ 
-░░███  ░   ██████  ████████  █████████████   ████  ████████    ██████   ░███ 
-░███     ███░░███░░███░░███░░███░░███░░███ ░░███ ░░███░░███  ░░░░░███  ░███ 
- ░███    ░███████  ░███ ░░░  ░███ ░███ ░███  ░███  ░███ ░███   ███████  ░███ 
-░███    ░███░░░   ░███      ░███ ░███ ░███  ░███  ░███ ░███  ███░░███  ░███ 
- █████   ░░██████  █████     █████░███ █████ █████ ████ █████░░████████ █████
-   ░░░░░     ░░░░░░  ░░░░░     ░░░░░ ░░░ ░░░░░ ░░░░░ ░░░░ ░░░░░  ░░░░░░░░ ░░░░░ 
+            <pre style="font-family: 'Courier Prime', monospace; font-size: 0.25em; line-height: 1.2; margin: 0; white-space: pre;">
+██████╗ ███████╗██████╗  █████╗ ████████╗███████╗    
+██╔══██╗██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██╔════╝    
+██║  ██║█████╗  ██████╔╝███████║   ██║   █████╗      
+██║  ██║██╔══╝  ██╔══██╗██╔══██║   ██║   ██╔══╝      
+██████╔╝███████╗██████╔╝██║  ██║   ██║   ███████╗    
+╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝    
+                                                      
+████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗     
+╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║     
+   ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║     
+   ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║     
+   ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗
+   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
             </pre>
         </h1>
         <div class="terminal-header">Grok vs Claude vs ChatGPT vs DeepSeek Debate</div>
