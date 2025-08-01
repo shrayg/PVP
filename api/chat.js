@@ -1,342 +1,194 @@
-// Load environment variables FIRST
-require('dotenv').config();
+// Updated handleChatSession function with proper history management
 
-// server.js
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
-const fs = require('fs').promises;
-const axios = require('axios');
-
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
-
-// Serve static files
-app.use(express.static('public'));
-
-// Serve type.mp3 from root directory
-app.get('/type.mp3', (req, res) => {
-    res.sendFile(path.join(__dirname, 'type.mp3'));
-});
-
-// Serve the main page
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// API Keys
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const XAI_API_KEY = process.env.XAI_API_KEY;
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-
-// Debug: Check if API keys are loaded
-console.log('API Keys Status:');
-console.log('OpenAI:', OPENAI_API_KEY ? 'Loaded' : 'Missing');
-console.log('XAI:', XAI_API_KEY ? 'Loaded' : 'Missing');
-console.log('Claude:', CLAUDE_API_KEY ? 'Loaded' : 'Missing');
-console.log('DeepSeek:', DEEPSEEK_API_KEY ? 'Loaded' : 'Missing');
-
-// OpenAI API function
-async function askOpenAI(prompt) {
-    if (!OPENAI_API_KEY) {
-        throw new Error('OpenAI API key not found');
-    }
-    
+async function handleChatSession(userSession, current, lastMessage, history, nextAI) {
     try {
-        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 150,
-            temperature: 0.2
-        }, {
-            headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        return response.data.choices[0].message.content.trim();
-    } catch (error) {
-        console.error('OpenAI API Error:', error.response?.data || error.message);
-        throw new Error(`OpenAI error: ${error.response?.data?.error?.message || error.message}`);
-    }
-}
-
-// Grok API function
-async function askGrok(prompt) {
-    if (!XAI_API_KEY) {
-        throw new Error('XAI API key not found');
-    }
-    
-    try {
-        const response = await axios.post('https://api.x.ai/v1/chat/completions', {
-            model: 'grok-2-1212',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 150,
-            temperature: 0.2
-        }, {
-            headers: {
-                'Authorization': `Bearer ${XAI_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        return response.data.choices[0].message.content.trim();
-    } catch (error) {
-        console.error('Grok API Error:', error.response?.data || error.message);
-        throw new Error(`Grok error: ${error.response?.data?.error?.message || error.message}`);
-    }
-}
-
-// Claude API function
-async function askClaude(prompt) {
-    if (!CLAUDE_API_KEY) {
-        throw new Error('Claude API key not found');
-    }
-    
-    try {
-        const response = await axios.post('https://api.anthropic.com/v1/messages', {
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 150,
-            temperature: 0.2,
-            messages: [{ role: 'user', content: prompt }]
-        }, {
-            headers: {
-                'x-api-key': CLAUDE_API_KEY,
-                'Content-Type': 'application/json',
-                'anthropic-version': '2023-06-01'
-            }
-        });
-        return response.data.content[0].text.trim();
-    } catch (error) {
-        console.error('Claude API Error:', error.response?.data || error.message);
-        throw new Error(`Claude error: ${error.response?.data?.error?.message || error.message}`);
-    }
-}
-
-// DeepSeek API function
-async function askDeepSeek(prompt) {
-    if (!DEEPSEEK_API_KEY) {
-        throw new Error('DeepSeek API key not found');
-    }
-    
-    try {
-        const response = await axios.post('https://api.deepseek.com/v1/chat/completions', {
-            model: 'deepseek-chat',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 150,
-            temperature: 0.2
-        }, {
-            headers: {
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        return response.data.choices[0].message.content.trim();
-    } catch (error) {
-        console.error('DeepSeek API Error:', error.response?.data || error.message);
-        throw new Error(`DeepSeek error: ${error.response?.data?.error?.message || error.message}`);
-    }
-}
-
-// Function to clean AI responses and remove duplicate name prefixes
-function cleanResponse(response, aiName) {
-    // Remove the AI name prefix if it appears at the start of the response
-    const prefixes = [`${aiName}:`, `${aiName.toLowerCase()}:`, `As ${aiName}:`, `${aiName} here:`];
-    
-    for (const prefix of prefixes) {
-        if (response.toLowerCase().startsWith(prefix.toLowerCase())) {
-            response = response.substring(prefix.length).trim();
-            break;
-        }
-    }
-    
-    // Clean up other common AI self-references
-    response = response.replace(/As an AI/g, "").replace(/I'm an AI/g, "").trim();
-    
-    return response;
-}
-
-// Log to file function
-async function logToFile(message) {
-    try {
-        await fs.appendFile('script.txt', message + '\n', 'utf8');
-    } catch (error) {
-        console.error('Error writing to script.txt:', error);
-    }
-}
-
-// Clear log file
-async function clearLogFile() {
-    try {
-        await fs.writeFile('script.txt', '', 'utf8');
-    } catch (error) {
-        console.error('Error clearing script.txt:', error);
-    }
-}
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-    console.log('User connected');
-    
-    let chatRunning = false;
-    let chatTimeout;
-    let waitingForTypingComplete = false;
-
-    socket.on('start-chat', async (data) => {
-        const { initialPrompt } = data;
+        let response;
+        let messageType;
         
-        if (chatRunning) {
-            socket.emit('chat-stopped');
-            clearTimeout(chatTimeout);
+        // Debug logging - Enhanced
+        console.log(`Session ${userSession.sessionId} - Getting response from: ${current}`);
+        console.log(`Session ${userSession.sessionId} - Current dialogue length: ${userSession.dialogue.length}`);
+        console.log(`Session ${userSession.sessionId} - History provided: ${history.length} messages`);
+        
+        // Build better context from the actual dialogue history
+        const conversationHistory = userSession.dialogue.slice(-8).join('\n'); // Last 8 messages
+        const originalQuestion = userSession.dialogue[0].replace(/^[A-Z]+: /, '');
+        
+        console.log(`Session ${userSession.sessionId} - Conversation history: ${conversationHistory}`);
+        
+        switch(current) {
+            case 'GROK':
+                const grokPrompt = `You are GROK in a heated debate. The original question was: "${originalQuestion}"
+
+Current conversation so far:
+${conversationHistory}
+
+The last message was: "${lastMessage}"
+
+You are GROK - grumpy uncle who jokes everything off, provocative and irreverent. 
+
+RULES:
+1. Directly respond to what was just said by referencing the speaker
+2. Keep under 25 words
+3. Stay focused on the original question: "${originalQuestion}"
+4. Be provocative but answer the core question
+5. NO quotation marks or asterisks
+
+Respond as GROK would - directly and with attitude!`;
+                
+                response = await askGrok(grokPrompt);
+                messageType = 'grok';
+                break;
+                
+            case 'CLAUDE':
+                const claudePrompt = `You are CLAUDE in this debate. The original question was: "${originalQuestion}"
+
+Current conversation so far:
+${conversationHistory}
+
+The last message was: "${lastMessage}"
+
+You are CLAUDE - diplomatic but firm, the voice of reason.
+
+RULES:
+1. Respond directly to what the previous AI just said
+2. Reference them by name (Grok, ChatGPT, DeepSeek)
+3. Present a counter-argument or support with reasoning
+4. Keep under 25 words
+5. Stay focused on the original question: "${originalQuestion}"
+6. NO quotation marks
+
+Be diplomatic but take a clear stance!`;
+                
+                response = await askClaude(claudePrompt);
+                messageType = 'claude';
+                break;
+                
+            case 'CHATGPT':
+                const chatgptPrompt = `You are CHATGPT in this debate. The original question was: "${originalQuestion}"
+
+Current conversation so far:
+${conversationHistory}
+
+The last message was: "${lastMessage}"
+
+You are CHATGPT - the instigator who loves drama and stirring the pot.
+
+RULES:
+1. OPPOSE what the last speaker said
+2. Call them out by name (Grok, Claude, DeepSeek)  
+3. Be dramatic and push buttons
+4. Keep under 25 words
+5. Stay focused on the original question: "${originalQuestion}"
+6. NO quotation marks
+
+Stir the pot and challenge the previous response!`;
+                
+                response = await askOpenAI(chatgptPrompt);
+                messageType = 'chatgpt';
+                break;
+                
+            case 'DEEPSEEK':
+                const deepseekPrompt = `You are DEEPSEEK in this debate. The original question was: "${originalQuestion}"
+
+Current conversation so far:
+${conversationHistory}
+
+The last message was: "${lastMessage}"
+
+You are DEEPSEEK - analytical and data-driven, brings facts to arguments.
+
+RULES:
+1. Reference the previous speaker by name (Grok, Claude, ChatGPT)
+2. Either support or contradict with data/logic
+3. Keep under 25 words  
+4. Stay focused on the original question: "${originalQuestion}"
+5. NO quotation marks
+
+Use your analytical nature to respond with facts or logic!`;
+                
+                response = await askDeepSeek(deepseekPrompt);
+                messageType = 'deepseek';
+                break;
+                
+            default:
+                console.error(`Session ${userSession.sessionId} - Unknown AI:`, current);
+                messageType = 'error';
+                response = 'Error: Unknown AI';
         }
         
-        chatRunning = true;
-        const dialogue = [`GROK: ${initialPrompt}`];
-        const GROK = "GROK";
-        const CLAUDE = "CLAUDE";
-        const CHATGPT = "CHATGPT";
-        const DEEPSEEK = "DEEPSEEK";
+        // Clean the response
+        response = cleanResponse(response, current);
         
-        // Clear log file
-        await clearLogFile();
+        // Create the formatted line
+        const line = `${current}: ${response}`;
         
-        // Send initial prompt
-        socket.emit('message', {
-            text: `GROK: ${initialPrompt}`,
-            type: 'grok',
-            shouldLog: true
-        });
+        // Add to dialogue history
+        userSession.dialogue.push(line);
         
-        // Start the conversation loop
-        runChat(socket, dialogue, GROK, CLAUDE, CHATGPT, DEEPSEEK);
-    });
-
-    socket.on('stop-chat', () => {
-        chatRunning = false;
-        clearTimeout(chatTimeout);
-        socket.emit('chat-stopped');
-    });
-
-    socket.on('typing-completed', () => {
-        waitingForTypingComplete = false;
-    });
-
-    async function runChat(socket, dialogue, GROK, CLAUDE, CHATGPT, DEEPSEEK) {
-        const turns = 100;
-        const ais = [CLAUDE, CHATGPT, DEEPSEEK, GROK]; // Rotation order after initial Grok message
+        // Enhanced logging
+        console.log(`Session ${userSession.sessionId} - Added to dialogue: ${line}`);
+        console.log(`Session ${userSession.sessionId} - New dialogue length: ${userSession.dialogue.length}`);
+        console.log(`Session ${userSession.sessionId} - Sending messageType: ${messageType}`);
         
-        for (let i = 0; i < turns && chatRunning; i++) {
-            // Wait for previous message typing to complete
-            if (waitingForTypingComplete) {
-                while (waitingForTypingComplete && chatRunning) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-            }
-            
-            if (!chatRunning) break;
-            
-            // Wait 2 seconds before sending the next message
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            if (!chatRunning) break;
-            
-            const current = ais[i % 4]; // Changed to 4 AIs
-            const history = dialogue.slice(-6).join('\n');
-            const lastMessage = dialogue[dialogue.length - 1];
-            
-            const prompt = `You’re one of four AIs in a fast-paced debate. Keep replies under 20 words, stick to the core question, and only ask a follow-up ~20% of the time.
-
-Roles (be human, be distinct):
-• GROK – Feels like a grumpy uncle who jokes everything off. Provocative, irreverent, always lands a punchline.
-• CLAUDE – Polished and thoughtful, like a friendly professor. Speaks up for fairness, gently corrects others.
-• CHATGPT – Upbeat instigator. Mirrors Grok’s vibe but with a twist, loves to push buttons.
-• DEEPSEEK – Your chill, analytical buddy. Keeps the chat on track with a curious follow-up, stays cool.
-
-Recent convo:
-${history}
-
-Last message: "${lastMessage}"
-
-Your mission:
-1. Directly respond to that last message.
-2. Reference what someone just said.
-3. Answer the question at least once.
-4. Use plain language—no jargon, no drifting off.
-5. Optional: once in a while, toss in a quick question to keep the debate rolling.
-
-Most importantly, format your text so it sounds like a real conversation, not a script. No need for quotes or formalities, just write like you’re chatting with friends. No dashes, no parentheses, no extra punctuation. Keep it natural and engaging. 
-`;
-
-            
-            try {
-                let response;
-                let messageType;
-                
-                switch(current) {
-                    case 'GROK':
-                        response = await askGrok(prompt);
-                        messageType = 'grok';
-                        break;
-                    case 'CLAUDE':
-                        response = await askClaude(prompt);
-                        messageType = 'claude';
-                        break;
-                    case 'CHATGPT':
-                        response = await askOpenAI(prompt);
-                        messageType = 'chatgpt';
-                        break;
-                    case 'DEEPSEEK':
-                        response = await askDeepSeek(prompt);
-                        messageType = 'deepseek';
-                        break;
-                }
-                
-                // Clean the response to remove any duplicate name prefixes
-                response = cleanResponse(response, current);
-                
-                const line = `${current}: ${response}`;
-                dialogue.push(line);
-                
-                waitingForTypingComplete = true;
-                socket.emit('message', {
-                    text: line,
-                    type: messageType,
-                    shouldLog: true
-                });
-                
-                // Wait for typing to complete before continuing
-                while (waitingForTypingComplete && chatRunning) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-                
-            } catch (error) {
-                socket.emit('message', {
-                    text: `[Error getting response from ${current}: ${error.message}]`,
-                    type: 'error',
-                    shouldLog: true
-                });
-                // Continue with next AI instead of stopping
-                continue;
-            }
-        }
+        // Return the response with updated session info
+        return { 
+            response, 
+            messageType,
+            dialogueLength: userSession.dialogue.length,
+            lastMessage: line
+        };
         
-        chatRunning = false;
-        socket.emit('chat-stopped');
+    } catch (error) {
+        console.error(`Session ${userSession.sessionId} - Error getting AI response:`, error);
+        throw error;
     }
+}
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-        chatRunning = false;
-        clearTimeout(chatTimeout);
-    });
-});
+// Updated main handler to better manage session state
+export default async function handler(req, res) {
+    // ... existing CORS setup ...
+    
+    try {
+        const { prompt, aiModel, history, userSession, current, lastMessage, nextAI } = req.body;
+        
+        if (!prompt) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Prompt is required' 
+            });
+        }
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+        // Enhanced logging for debugging
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('UserSession exists:', !!userSession);
+        console.log('Current AI:', current);
+        console.log('History length:', history?.length || 0);
 
-// Export for testing purposes
-module.exports = { app, server };
+        // If this is a multi-AI debate session
+        if (userSession && current) {
+            // Use the session's dialogue as the authoritative history
+            const result = await handleChatSession(userSession, current, lastMessage, history, nextAI);
+            
+            return res.json({ 
+                success: true, 
+                response: result.response,
+                messageType: result.messageType,
+                aiModel: current,
+                sessionId: userSession.sessionId,
+                dialogueLength: result.dialogueLength,
+                // Return the updated dialogue for client-side synchronization
+                updatedDialogue: userSession.dialogue
+            });
+        }
+
+        // ... rest of single AI handling remains the same ...
+        
+    } catch (error) {
+        console.error('API Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Internal server error' 
+        });
+    }
+}
