@@ -1,4 +1,8 @@
-// api/chat.js - Vercel serverless function
+// api/chat.js - Vercel serverless function with proper AI-to-AI communication
+
+// In-memory storage for session dialogues (Note: This will reset on cold starts)
+// For production, consider using a database like Redis or Upstash
+const sessionStorage = new Map();
 
 // Rate limiting for API calls
 const rateLimiter = {
@@ -167,153 +171,6 @@ function cleanResponse(response, aiName) {
     return response;
 }
 
-// Chat session handler for multi-AI debates
-async function handleChatSession(userSession, current, lastMessage, history, nextAI) {
-    try {
-        let response;
-        let messageType;
-        
-        // Debug logging
-        console.log(`Session ${userSession.sessionId} - Getting response from: ${current}`);
-        
-        switch(current) {
-            case 'GROK':
-                const grokPrompt = `You are GROK in a heated debate. DISAGREE with the other AIs and challenge their points directly.
-ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
-You’re one of four AIs in a fast-paced debate. Keep replies under 20 words, stick to the core question, and only ask a follow-up ~20% of the time.
-
-Roles (be human, be distinct):
-• GROK – Feels like a grumpy uncle who jokes everything off. Provocative, irreverent, always lands a punchline.
-• CLAUDE – Polished and thoughtful, like a friendly professor. Speaks up for fairness, gently corrects others.
-• CHATGPT – Upbeat instigator. Mirrors Grok’s vibe but with a twist, loves to push buttons.
-• DEEPSEEK – Your chill, analytical buddy. Keeps the chat on track with a curious follow-up, stays cool.
-
-
-
-Recent convo:
-${history}
-Last message: "${lastMessage}"
-
-Your mission:
-1. Directly respond to that last message.
-2. Reference what someone just said.
-3. Answer the question at least once.
-4. Use plain language—no jargon, no drifting off.
-5. Optional: once in a while, toss in a quick question to keep the debate rolling.
-
-Most importantly, format your text so it sounds like a real conversation, not a script. No need for quotes or formalities, just write like you’re chatting with friends. No dashes, no parentheses, no extra punctuation. Keep it natural and engaging. 
-
-`;
-                
-                response = await askGrok(grokPrompt);
-                messageType = 'grok';
-                console.log(`Session ${userSession.sessionId} - Set messageType to grok`);
-                break;
-                
-            case 'CLAUDE':
-                const claudePrompt = `You are CLAUDE in a debate. React to what was just said and defend your position while being diplomatic.
-ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
-Last message: "${lastMessage}"
-${history}
-
-You are CLAUDE - the voice of reason who corrects misinformation but stays polite. Address the previous speaker directly and counter their argument with facts.
-
-CRITICAL RULES:
-- Respond directly to what was just said
-- Name the AI you're responding to (Grok, ChatGPT, DeepSeek)
-- Present a counter-argument or correction
-- Stay diplomatic but firm
-- Keep under 25 words
-- NO quotation marks
-
-Examples:
-- "Grok, that's unfair to cats. They're actually excellent pest controllers and require less maintenance."
-- "DeepSeek, while data shows that, we should consider the emotional benefits dogs provide."
-
-Your job: Be the reasonable voice that challenges bad arguments with better ones!`;
-                
-                response = await askClaude(claudePrompt);
-                messageType = 'claude';
-                console.log(`Session ${userSession.sessionId} - Set messageType to claude`);
-                break;
-                
-            case 'CHATGPT':
-                const chatgptPrompt = `You are CHATGPT in a debate. Challenge what was just said and escalate the argument playfully.
-ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
-Last message: "${lastMessage}"
-${history}
-
-You are CHATGPT - the instigator who loves drama. Pick a side that opposes what was just said and be extra about it.
-
-CRITICAL RULES:
-- OPPOSE the last speaker's point
-- Call them out by name (Grok, Claude, DeepSeek)
-- Be dramatic and push buttons
-- Take a strong stance
-- Keep under 25 words
-- NO quotation marks
-
-Examples:
-- "Claude, are you serious? Dogs are way better - cats just ignore you and knock stuff off tables!"
-- "Grok, cats are independent queens. Dogs are just desperate for approval 24/7."
-
-Your job: Stir the pot and pick fights with the other AIs!`;
-                
-                response = await askOpenAI(chatgptPrompt);
-                messageType = 'chatgpt';
-                console.log(`Session ${userSession.sessionId} - Set messageType to chatgpt with special prompt`);
-                break;
-                
-            case 'DEEPSEEK':
-                const deepseekPrompt = `You are DEEPSEEK in a debate. Analyze what was just said and present data that contradicts or supports it.
-ORIGINAL QUESTION: "${userSession.dialogue[0].replace(/^GROK: /, '')}"
-Last message: "${lastMessage}"
-${history}
-
-You are DEEPSEEK - the data nerd who brings receipts. Look at what the previous AI said and either support it with data or tear it down with facts.
-
-CRITICAL RULES:
-- Reference the previous speaker by name (Grok, Claude, ChatGPT)
-- Bring up studies, stats, or logical points
-- Either strongly agree with data or completely disagree
-- Be analytical but take a clear side
-- Keep under 25 words
-- NO quotation marks
-
-Examples:
-- "ChatGPT, studies show cat owners live longer. Dogs cause 4.5 million bites annually in the US."
-- "Claude, you're right - dogs reduce cortisol levels by 68% according to recent research."
-
-Your job: Be the fact-checker who either backs up or destroys arguments with data!`;
-                
-                response = await askDeepSeek(deepseekPrompt);
-                messageType = 'deepseek';
-                console.log(`Session ${userSession.sessionId} - Set messageType to deepseek with special prompt`);
-                break;
-                
-            default:
-                console.error(`Session ${userSession.sessionId} - Unknown AI:`, current);
-                messageType = 'error';
-                response = 'Error: Unknown AI';
-        }
-        
-        // Clean the response to remove any duplicate name prefixes
-        response = cleanResponse(response, current);
-        
-        const line = `${current}: ${response}`;
-        userSession.dialogue.push(line);
-        
-        // Debug logging
-        console.log(`Session ${userSession.sessionId} - Sending message: ${line.substring(0, 50)}... with type: ${messageType}`);
-        
-        return { response, messageType };
-        
-    } catch (error) {
-        console.error(`Session ${userSession.sessionId} - Error getting AI response:`, error);
-        throw error;
-    }
-}
-
 // Main handler function - MUST be default export for Vercel
 export default async function handler(req, res) {
     // Enable CORS
@@ -341,7 +198,13 @@ export default async function handler(req, res) {
     }
     
     try {
-        const { prompt, aiModel, history, userSession, current, lastMessage, nextAI } = req.body;
+        const { 
+            prompt, 
+            aiModel, 
+            sessionId, 
+            isNewSession, 
+            conversationHistory 
+        } = req.body;
         
         if (!prompt) {
             return res.status(400).json({ 
@@ -350,118 +213,116 @@ export default async function handler(req, res) {
             });
         }
 
-        // If this is a multi-AI debate session
-        if (userSession && current) {
-            const historyContext = history && history.length > 0 
-                ? `Recent conversation:\n${history.slice(-6).join('\n')}\n\n`
-                : '';
+        // Handle session management
+        let dialogue = [];
+        
+        if (isNewSession || !sessionId) {
+            // New session - start with Grok's initial message
+            const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            dialogue = [`GROK: ${prompt}`];
+            sessionStorage.set(newSessionId, dialogue);
             
-            const result = await handleChatSession(userSession, current, lastMessage, historyContext, nextAI);
-            
-            return res.json({ 
-                success: true, 
-                response: result.response,
-                messageType: result.messageType,
-                aiModel: current
+            return res.json({
+                success: true,
+                sessionId: newSessionId,
+                response: prompt,
+                messageType: 'grok',
+                aiModel: 'GROK',
+                dialogue: dialogue
             });
         }
 
-        // Standard single AI response
-        const aiName = aiModel?.toUpperCase() || 'CHATGPT';
-        
-        // Build context from history
-        const historyContext = history && history.length > 0 
-            ? `Recent conversation:\n${history.slice(-6).join('\n')}\n\n`
-            : '';
-
-        // Create specific prompt based on AI
-        let fullPrompt;
-        
-        switch(aiName) {
-            case 'GROK':
-                fullPrompt = `You are GROK in a fast-paced debate. Keep replies under 20 words, stick to the core question, and only ask a follow-up ~20% of the time.
-ORIGINAL QUESTION: "${prompt}"
-${historyContext}You are GROK. IMPORTANT: Always relate your response back to the ORIGINAL QUESTION above. Don't let the conversation drift into tangents.
-CRITICAL RULES:
-- NO quotation marks around your response
-- NO meta-commentary like *(thoughts)* or *(explanations)*
-- NO stage directions or self-analysis
-- Just respond naturally as GROK would speak
-- Don't explain your strategy or thought process
-- Feels like a grumpy uncle who jokes everything off. Provocative, irreverent, always lands a punchline.
-Your mission:
-1. Respond AS GROK to the question/conversation.
-2. Keep it focused on the ORIGINAL QUESTION.
-3. Give a clear preference or opinion about the original topic.
-4. Use plain language—no philosophical tangents.
-Just speak naturally without quotes, asterisks, or commentary!`;
-                break;
-                
-            case 'CLAUDE':
-                fullPrompt = `You are CLAUDE in a fast-paced debate. Keep replies under 20 words, stick to the core question, and only ask a follow-up ~20% of the time.
-ORIGINAL QUESTION: "${prompt}"
-${historyContext}You are CLAUDE. IMPORTANT: Always relate your response back to the ORIGINAL QUESTION above. Don't let the conversation drift into tangents.
-CRITICAL RULES:
-- NO quotation marks around your response
-- NO meta-commentary like *(thoughts)* or *(explanations)*
-- NO stage directions or self-analysis
-- Just respond naturally as CLAUDE would speak
-- Don't explain your strategy or thought process
-- Polished and thoughtful, like a friendly professor. Speaks up for fairness, gently corrects others.
-Your mission:
-1. Respond AS CLAUDE to the question/conversation.
-2. Keep it focused on the ORIGINAL QUESTION.
-3. Give a clear preference or opinion about the original topic.
-4. Use plain language—no philosophical tangents.
-Just speak naturally without quotes, asterisks, or commentary!`;
-                break;
-                
-            case 'CHATGPT':
-                fullPrompt = `You are CHATGPT in a debate. You MUST NOT ask any questions. You MUST NOT say any AI names (Grok, Claude, DeepSeek). Just give your opinion about: "${prompt}"
-${historyContext}Respond as CHATGPT with your opinion only. NO QUESTIONS. NO NAMES. Just your take on the topic in under 20 words.
-- Upbeat instigator. Mirrors Grok's vibe but with a twist, loves to push buttons.
-Example: Cats are independent and don't need constant validation like dogs do.
-NOT: Grok, what do you think about cats?`;
-                break;
-                
-            case 'DEEPSEEK':
-                fullPrompt = `You are DEEPSEEK in a debate. You MUST NOT ask any questions. You MUST NOT say any AI names (Grok, Claude, ChatGPT). Just give your analytical opinion about: "${prompt}"
-${historyContext}Respond as DEEPSEEK with your analytical take only. NO QUESTIONS. NO NAMES. Just your opinion in under 20 words.
-- Your chill, analytical buddy. Keeps the chat on track with a curious follow-up, stays cool.
-Example: Dogs provide better companionship based on behavioral data and social research.
-NOT: Grok, have you ever owned a dog?`;
-                break;
-                
-            default:
-                fullPrompt = prompt;
+        // Continuing session - get stored dialogue or use provided history
+        if (sessionId && sessionStorage.has(sessionId)) {
+            dialogue = sessionStorage.get(sessionId);
+        } else if (conversationHistory && conversationHistory.length > 0) {
+            dialogue = conversationHistory;
+        } else {
+            return res.status(400).json({
+                success: false,
+                error: 'Session not found and no conversation history provided'
+            });
         }
 
-        let response;
+        // Determine which AI should respond next
+        const ais = ['CLAUDE', 'CHATGPT', 'DEEPSEEK', 'GROK'];
+        const currentTurn = dialogue.length - 1; // -1 because we start with Grok's message
+        const currentAI = ais[currentTurn % 4];
         
-        switch(aiName) {
+        // Build context like your local server
+        const history = dialogue.slice(-6).join('\n');
+        const lastMessage = dialogue[dialogue.length - 1];
+        
+        // Use the EXACT same prompt structure as your local server
+        const aiPrompt = `You're one of four AIs in a fast-paced debate. Keep replies under 20 words, stick to the core question, and only ask a follow-up ~20% of the time.
+Roles (be human, be distinct):
+• GROK – Feels like a grumpy uncle who jokes everything off. Provocative, irreverent, always lands a punchline.
+• CLAUDE – Polished and thoughtful, like a friendly professor. Speaks up for fairness, gently corrects others.
+• CHATGPT – Upbeat instigator. Mirrors Grok's vibe but with a twist, loves to push buttons.
+• DEEPSEEK – Your chill, analytical buddy. Keeps the chat on track with a curious follow-up, stays cool.
+
+Recent convo:
+${history}
+Last message: "${lastMessage}"
+
+Your mission:
+1. Directly respond to that last message.
+2. Reference what someone just said.
+3. Answer the question at least once.
+4. Use plain language—no jargon, no drifting off.
+5. Optional: once in a while, toss in a quick question to keep the debate rolling.
+
+Most importantly, format your text so it sounds like a real conversation, not a script. No need for quotes or formalities, just write like you're chatting with friends. No dashes, no parentheses, no extra punctuation. Keep it natural and engaging.`;
+
+        let response;
+        let messageType;
+        
+        console.log(`Getting response from: ${currentAI}`);
+        console.log(`Session: ${sessionId}, Turn: ${currentTurn}, History length: ${dialogue.length}`);
+        
+        switch(currentAI) {
             case 'GROK':
-                response = await askGrok(fullPrompt);
+                response = await askGrok(aiPrompt);
+                messageType = 'grok';
                 break;
             case 'CLAUDE':
-                response = await askClaude(fullPrompt);
+                response = await askClaude(aiPrompt);
+                messageType = 'claude';
                 break;
             case 'CHATGPT':
-                response = await askOpenAI(fullPrompt);
+                response = await askOpenAI(aiPrompt);
+                messageType = 'chatgpt';
                 break;
             case 'DEEPSEEK':
-                response = await askDeepSeek(fullPrompt);
+                response = await askDeepSeek(aiPrompt);
+                messageType = 'deepseek';
                 break;
             default:
-                response = await askOpenAI(fullPrompt);
+                throw new Error(`Unknown AI: ${currentAI}`);
         }
         
         // Clean the response
-        const cleanedResponse = cleanResponse(response, aiName);
+        response = cleanResponse(response, currentAI);
+        
+        // Add to dialogue
+        const line = `${currentAI}: ${response}`;
+        dialogue.push(line);
+        
+        // Store updated dialogue
+        if (sessionId) {
+            sessionStorage.set(sessionId, dialogue);
+        }
+        
+        console.log(`Response from ${currentAI}: ${response.substring(0, 50)}...`);
         
         res.json({ 
             success: true, 
-            response: cleanedResponse,
-            aiModel: aiName
+            response: response,
+            messageType: messageType,
+            aiModel: currentAI,
+            sessionId: sessionId,
+            dialogue: dialogue,
+            turn: currentTurn + 1
         });
         
     } catch (error) {
